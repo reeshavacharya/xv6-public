@@ -63,7 +63,20 @@ ls(char *path)
         printf(1, "ls: cannot stat %s\n", buf);
         continue;
       }
-      printf(1, "%s %d %d %d\n", fmtname(buf), st.type, st.ino, st.size);
+      if(fmtname(buf)[0]!='.'){
+        char *name = fmtname(buf);  
+        int directoryLength = strlen(name);
+        char directoryName[directoryLength+1];
+        for (int i = 0; i<directoryLength; i++){
+          directoryName[i] = name[i];
+        }
+        directoryName[directoryLength]='/';
+        if(st.type==1){
+          printf(1, "%s %d %d %d\n", directoryName, st.type, st.ino, st.size);
+        }else {
+          printf(1, "%s %d %d %d\n", name, st.type, st.ino, st.size);
+        }
+      }
     }
     break;
   }
