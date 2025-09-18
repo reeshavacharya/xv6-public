@@ -1,5 +1,6 @@
 struct stat;
 struct rtcdate;
+#include "types.h" 
 
 // system calls
 int fork(void);
@@ -20,6 +21,7 @@ int mkdir(const char*);
 int chdir(const char*);
 int dup(int);
 int getpid(void);
+int hello(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);

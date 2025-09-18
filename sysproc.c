@@ -36,6 +36,12 @@ sys_kill(void)
   return kill(pid);
 }
 
+int 
+sys_hello(void){
+  cprintf("Hello from Kernel Mode!\n");
+  return 0;
+}
+
 int
 sys_getpid(void)
 {
