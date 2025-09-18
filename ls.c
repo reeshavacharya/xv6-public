@@ -64,7 +64,7 @@ void bubbleSortFiles(struct file_entry files[], int n) {
 int count_files(){
   int file_count = 0;
   for(int i = 0; i< 100; i ++){
-    if(files[i].st.size!=0){
+    if(files[i].st.type!=0){
       file_count++;
     }
   }
@@ -153,9 +153,6 @@ ls(char *path, bool sort_size)
     }
     if(sort_size){
       int n = count_files();
-      // for (int i = 0; i< n ; i++){
-      //   printf(1, "File[%d]: %s \tsize: %d\n", i, files[i].name, files[i].st.size);
-      // }
       bubbleSortFiles(files, n);
       print_files_sorted();
     }
