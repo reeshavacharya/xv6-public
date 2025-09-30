@@ -35,6 +35,7 @@
         "typeinfo": "c",
         "unordered_map": "c",
         "vector": "c",
-        "user.h": "c"
+        "user.h": "c",
+        "cstdio": "c"
     }
 }
