@@ -7,6 +7,7 @@
 #include "proc.h"
 #include "spinlock.h"
 
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -89,6 +90,10 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   p->ticks_running = 0;
+  p->predicted_length = (p->pid * 17) % 100 + 1; // SJF length
+  p->priority = 0;       // default priority
+  p->quantum = DEFAULT_QUANTUM; // default RR quantum
+  p->ticks_ran = 0;      // ticks run at current priority
 
   #if SCHEDULER == SJF
     p->predicted_length = (p->pid * 17) % 100 + 1; // random predicted length
@@ -327,58 +332,74 @@ wait(void)
 void
 scheduler(void)
 {
-  struct proc *p;
-  struct cpu *c = mycpu();
-  c->proc = 0;
+    struct proc *p;
+    struct cpu *c = mycpu();
+    c->proc = 0;
 
-  for(;;){
-    // Enable interrupts on this processor.
-    sti();
+    for(;;){
+        // Enable interrupts on this processor.
+        sti();
 
-    // Loop over process table looking for process to run.
-    acquire(&ptable.lock);
+        // Acquire process table lock.
+        acquire(&ptable.lock);
 
 #if SCHEDULER == SJF
-    // Find the RUNNABLE process with the smallest predicted length
-    struct proc *shortest = 0;
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
-      if(!shortest || p->predicted_length < shortest->predicted_length)
-        shortest = p;
-    }
+        // Find the RUNNABLE process with the smallest predicted length
+        struct proc *shortest = 0;
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+            if(p->state != RUNNABLE)
+                continue;
+            if(!shortest || p->predicted_length < shortest->predicted_length)
+                shortest = p;
+        }
 
-    if(shortest){
-      p = shortest;
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
+        if(shortest){
+            p = shortest;
+            c->proc = p;
+            switchuvm(p);
+            p->state = RUNNING;
 
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
+            swtch(&(c->scheduler), p->context);
+            switchkvm();
 
-      // Process is done running for now.
-      c->proc = 0;
-    }
+            c->proc = 0;
+        }
+
+#elif SCHEDULER == PRIORITYRR
+        // Round Robin scheduler (default xv6)
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+            if(p->state != RUNNABLE)
+                continue;
+
+            c->proc = p;
+            switchuvm(p);
+            p->state = RUNNING;
+
+            swtch(&(c->scheduler), p->context);
+            switchkvm();
+
+            c->proc = 0;
+        }
 
 #else  // DEFAULT scheduler
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
+        // Fallback if no scheduler specified
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+            if(p->state != RUNNABLE)
+                continue;
 
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
+            c->proc = p;
+            switchuvm(p);
+            p->state = RUNNING;
 
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
+            swtch(&(c->scheduler), p->context);
+            switchkvm();
 
-      c->proc = 0;
-    }
+            c->proc = 0;
+        }
 #endif
 
-    release(&ptable.lock);
-  }
+        release(&ptable.lock);
+    }
 }
 
 
@@ -597,4 +618,37 @@ sys_sjf_job_length(void)
     }
     release(&ptable.lock);
     return -1;
+}
+
+
+int sys_set_sched_priority(void) {
+    int prio;
+    if(argint(0, &prio) < 0) return -1;
+    if(prio < 0 || prio >= MAX_PRIORITY) return -1;
+    myproc()->priority = prio;
+    return 0;
+}
+
+int sys_get_sched_priority(void) {
+    int pid;
+    if(argint(0, &pid) < 0) return -1;
+    struct proc *p;
+    acquire(&ptable.lock);
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if(p->pid == pid && (p->state == RUNNABLE || p->state == RUNNING)){
+            int prio = p->priority;
+            release(&ptable.lock);
+            return prio;
+        }
+    }
+    release(&ptable.lock);
+    return -1;
+}
+
+int sys_set_time_quantum(void) {
+    int q;
+    if(argint(0, &q) < 0) return -1;
+    if(q <= 0) return -1;
+    myproc()->quantum = q;
+    return 0;
 }

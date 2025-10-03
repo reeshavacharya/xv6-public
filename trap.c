@@ -18,7 +18,6 @@ void
 tvinit(void)
 {
   int i;
-
   for(i = 0; i < 256; i++)
     SETGATE(idt[i], 0, SEG_KCODE<<3, vectors[i], 0);
   SETGATE(idt[T_SYSCALL], 1, SEG_KCODE<<3, vectors[T_SYSCALL], DPL_USER);
@@ -32,7 +31,7 @@ idtinit(void)
   lidt(idt, sizeof(idt));
 }
 
-//PAGEBREAK: 41
+// Trap handler
 void
 trap(struct trapframe *tf)
 {
@@ -51,7 +50,7 @@ trap(struct trapframe *tf)
     if(cpuid() == 0){
       acquire(&tickslock);
       ticks++;
-      wakeup(&ticks);
+      wakeup(&ticks);   // wake up sleep() calls
       release(&tickslock);
     }
     lapiceoi();
@@ -77,16 +76,12 @@ trap(struct trapframe *tf)
             cpuid(), tf->cs, tf->eip);
     lapiceoi();
     break;
-
-  //PAGEBREAK: 13
   default:
     if(myproc() == 0 || (tf->cs&3) == 0){
-      // In kernel, it must be our mistake.
       cprintf("unexpected trap %d from cpu %d eip %x (cr2=0x%x)\n",
               tf->trapno, cpuid(), tf->eip, rcr2());
       panic("trap");
     }
-    // In user space, assume process misbehaved.
     cprintf("pid %d %s: trap %d err %d on cpu %d "
             "eip 0x%x addr 0x%x--kill proc\n",
             myproc()->pid, myproc()->name, tf->trapno,
@@ -94,23 +89,28 @@ trap(struct trapframe *tf)
     myproc()->killed = 1;
   }
 
-  // Force process exit if it has been killed and is in user space.
-  // (If it is still executing in the kernel, let it keep running
-  // until it gets to the regular system call return.)
+  // Kill user process if needed
   if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)
     exit();
 
-  // Force process to give up CPU on clock tick.
-  // If interrupts were on while locks held, would need to check nlock.
+  // Scheduler preemption on timer tick
   if(myproc() && myproc()->state == RUNNING &&
      tf->trapno == T_IRQ0+IRQ_TIMER)
-     {
-        myproc()->ticks_running++;
-        yield();
-     }
-     
+  {
+    myproc()->ticks_running++;  // account CPU time
 
-  // Check if the process has been killed since we yielded
+#if SCHEDULER == PRIORITYRR
+    // Preempt after quantum expires
+    if(myproc()->ticks_running % myproc()->quantum == 0)
+      yield();
+#elif SCHEDULER == PRIORITYRR || SCHEDULER == DEFAULT
+    yield();  // standard RR preemption
+#elif SCHEDULER == SJF
+    // SJF is non-preemptive, do not yield automatically
+#endif
+  }
+
+  // Check kill again after yield
   if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)
     exit();
 }

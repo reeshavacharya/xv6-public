@@ -34,6 +34,9 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+#define MAX_PRIORITY 3
+#define DEFAULT_QUANTUM 5 
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -41,8 +44,7 @@ struct proc {
   char *kstack;                // Bottom of kernel stack for this process
   enum procstate state;        // Process state
   int pid;                     // Process ID
-  int ticks_running;           // Number of ticks process has been running  
-  int predicted_length;        // Predicted length of next CPU burst
+  int ticks_running;           // Number of ticks process has been running
   struct proc *parent;         // Parent process
   struct trapframe *tf;        // Trap frame for current syscall
   struct context *context;     // swtch() here to run process
@@ -51,6 +53,16 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+#if SCHEDULER == SJF
+  int predicted_length;        // Predicted length of next CPU burst
+#endif
+
+#if SCHEDULER == PRIORITYRR
+  int priority;                // Current priority of process (0..MAX_PRIORITY-1)
+  int quantum;              // RR quantum for this priority
+  int ticks_ran;               // Number of ticks used at current quantum
+#endif
 };
 
 // Process memory is laid out contiguously, low addresses first:
