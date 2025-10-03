@@ -21,10 +21,11 @@ int mkdir(const char*);
 int chdir(const char*);
 int dup(int);
 int getpid(void);
-int hello(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int hello(void);
+int ticks_running(int);
 
 // ulib.c
 int stat(const char*, struct stat*);

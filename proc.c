@@ -88,6 +88,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->ticks_running = 0;
 
   release(&ptable.lock);
 
@@ -531,4 +532,22 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+int sys_ticks_running(void) {
+  int pid;
+  if(argint(0, &pid) < 0)
+    return -1;
+
+  struct proc *p;
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid){
+      int ticks = p->ticks_running;
+      release(&ptable.lock);
+      return ticks;
+    }
+  }
+  release(&ptable.lock);
+  return -1; 
 }

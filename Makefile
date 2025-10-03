@@ -181,10 +181,12 @@ UPROGS=\
 	_usertests\
 	_wc\
 	_zombie\
-	_hello\
 	_sleep\
 	_clear\
 	_sort\
+	_hello\
+	_ticks_test\
+	_ticks_check\
 
 fs.img: mkfs README OS611_Ex.txt $(UPROGS)
 	./mkfs fs.img README OS611_Ex.txt $(UPROGS)
@@ -254,7 +256,7 @@ qemu-nox-gdb: fs.img xv6.img .gdbinit
 EXTRA=\
 	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
-	printf.c umalloc.c hello.c sleep.c clear.c sort.c\
+	printf.c umalloc.c hello.c sleep.c clear.c sort.c ticks_test.c ticks_check.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil\
 
