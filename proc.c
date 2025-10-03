@@ -90,6 +90,10 @@ found:
   p->pid = nextpid++;
   p->ticks_running = 0;
 
+  #if SCHEDULER == SJF
+    p->predicted_length = (p->pid * 17) % 100 + 1; // random predicted length
+  #endif
+
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -326,20 +330,26 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
-  
+
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+
+#if SCHEDULER == SJF
+    // Find the RUNNABLE process with the smallest predicted length
+    struct proc *shortest = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
+      if(!shortest || p->predicted_length < shortest->predicted_length)
+        shortest = p;
+    }
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
+    if(shortest){
+      p = shortest;
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
@@ -348,13 +358,29 @@ scheduler(void)
       switchkvm();
 
       // Process is done running for now.
-      // It should have changed its p->state before coming back.
       c->proc = 0;
     }
-    release(&ptable.lock);
 
+#else  // DEFAULT scheduler
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->state != RUNNABLE)
+        continue;
+
+      c->proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
+
+      swtch(&(c->scheduler), p->context);
+      switchkvm();
+
+      c->proc = 0;
+    }
+#endif
+
+    release(&ptable.lock);
   }
 }
+
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores
@@ -550,4 +576,25 @@ int sys_ticks_running(void) {
   }
   release(&ptable.lock);
   return -1; 
+}
+
+
+int
+sys_sjf_job_length(void)
+{
+    int pid;
+    if(argint(0, &pid) < 0)
+        return -1;
+
+    struct proc *p;
+    acquire(&ptable.lock);
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if(p->pid == pid && (p->state == RUNNABLE || p->state == RUNNING)){
+            int len = p->predicted_length;
+            release(&ptable.lock);
+            return len;
+        }
+    }
+    release(&ptable.lock);
+    return -1;
 }
