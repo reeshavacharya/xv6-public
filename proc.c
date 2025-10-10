@@ -98,6 +98,9 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   p->ticks_running = 0;
+  p->priority = DEFAULT_PRIORITY;
+  p->quantum  = DEFAULT_QUANTUM;
+  p->rrticks  = 0;
 
   release(&ptable.lock);
 
@@ -364,6 +367,45 @@ scheduler(void)
           switchkvm();
           c->proc = 0;
         }
+        release(&ptable.lock);
+    #elif SCHEDULER_PRIORITYRR
+        // Static RR cursors per priority level (index into ptable.proc)
+        static int rr_cursor[PRIORITY];
+
+        acquire(&ptable.lock);
+
+        // Try from highest to lowest priority
+        int pr;
+        int ran = 0;
+        for(pr = 0; pr < PRIORITY; pr++){
+          int i;
+          for(i = 0; i < NPROC; i++){
+            int idx = (rr_cursor[pr] + i) % NPROC;
+            struct proc *cand = &ptable.proc[idx];
+
+            if(cand->state == RUNNABLE && cand->priority == pr){
+              // Found the next to run in this priority level
+              c->proc = cand;
+              switchuvm(cand);
+              cand->state = RUNNING;
+              cand->ticks_running++;           // total runtime (diagnostic)
+              // Ensure slice starts counting if it was reset earlier
+              // (trap.c will advance rrticks and preempt when rrticks >= quantum)
+
+              swtch(&(c->scheduler), cand->context);
+              switchkvm();
+
+              // Move RR cursor forward for this level (true round-robin)
+              rr_cursor[pr] = (idx + 1) % NPROC;
+
+              c->proc = 0;
+              ran = 1;
+              break; // run at most one process per loop
+            }
+          }
+          if(ran) break;
+        }
+
         release(&ptable.lock);
     #else
         // Loop over process table looking for process to run.

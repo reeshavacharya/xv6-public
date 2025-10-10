@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "spinlock.h"
 
 int
 sys_fork(void)
@@ -115,4 +116,67 @@ sys_sjf_job_length(void)
     return -1;
 
   return sjf_job_length(pid);
+}
+
+extern struct {
+  struct spinlock lock;
+  struct proc proc[NPROC];
+} ptable;
+
+int
+sys_set_sched_priority(void)
+{
+  int pr;
+  if(argint(0, &pr) < 0)
+    return -1;
+
+  if(pr < 0 || pr >= PRIORITY)
+    return -1;
+
+  struct proc *p = myproc();
+  acquire(&ptable.lock);
+  p->priority = pr;
+  release(&ptable.lock);
+  return 0;
+}
+
+int
+sys_get_sched_priority(void)
+{
+  int pid;
+  if(argint(0, &pid) < 0)
+    return -1;
+
+  acquire(&ptable.lock);
+  struct proc *q;
+  for(q = ptable.proc; q < &ptable.proc[NPROC]; q++){
+    if(q->pid == pid){
+      int ret = (q->state == RUNNABLE) ? q->priority : -1;
+      release(&ptable.lock);
+      return ret;
+    }
+  }
+  release(&ptable.lock);
+  return -1; // not found
+}
+
+int
+sys_set_sched_quantum(void)
+{
+  int q;
+  if(argint(0, &q) < 0)
+    return -1;
+
+  if(q < MIN_QUANTUM || q > MAX_QUANTUM)
+    return -1;
+
+  struct proc *p = myproc();
+  acquire(&ptable.lock);
+  p->quantum = q;
+  // If the process shortens its quantum mid-slice,
+  // nudge the counter to avoid a long first slice.
+  if(p->rrticks > p->quantum)
+    p->rrticks = p->quantum - 1;
+  release(&ptable.lock);
+  return 0;
 }

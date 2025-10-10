@@ -191,6 +191,7 @@ UPROGS=\
 	_ticks_test\
 	_ticks_check\
 	_sjf_test\
+	_priority_rr_test\
 
 fs.img: mkfs README OS611_Ex.txt $(UPROGS)
 	./mkfs fs.img README OS611_Ex.txt $(UPROGS)
@@ -261,7 +262,7 @@ EXTRA=\
 	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
 	printf.c umalloc.c hello.c sleep.c clear.c sort.c ticks_test.c ticks_check.c\
-	sjf_test.c\
+	sjf_test.c _priority_rr_test.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil\
 

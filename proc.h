@@ -1,3 +1,23 @@
+#ifndef PRIORITY
+#define PRIORITY 3
+#endif
+
+// Reasonable defaults for RR
+#ifndef DEFAULT_PRIORITY
+#define DEFAULT_PRIORITY 1
+#endif
+
+#ifndef DEFAULT_QUANTUM
+#define DEFAULT_QUANTUM 5
+#endif
+
+#ifndef MIN_QUANTUM
+#define MIN_QUANTUM 1
+#endif
+
+#ifndef MAX_QUANTUM
+#define MAX_QUANTUM 100
+#endif
 // Per-CPU state
 struct cpu {
   uchar apicid;                // Local APIC ID
@@ -43,6 +63,9 @@ struct proc {
   int pid;                     // Process ID
   int ticks_running;           // Number of ticks process has been running  
   int predicted_length;        // Used in SJF scheduler in proc.c Scheduler() functoin for job length prediction
+  int priority;                // Process priority (lower value means higher priority)
+  int quantum;                 // Time quantum for the process
+  int rrticks;                 // Number of ticks the process has run in its current quantum
   struct proc *parent;         // Parent process
   struct trapframe *tf;        // Trap frame for current syscall
   struct context *context;     // swtch() here to run process
