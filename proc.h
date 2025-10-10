@@ -64,7 +64,7 @@ struct proc {
   int ticks_ran;               // Number of ticks used at current quantum
 #endif
 };
-
+int ticks_running(int pid);
 // Process memory is laid out contiguously, low addresses first:
 //   text
 //   original data and bss

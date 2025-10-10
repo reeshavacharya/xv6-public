@@ -159,7 +159,7 @@ userinit(void)
   acquire(&ptable.lock);
 
   p->state = RUNNABLE;
-
+  p->ticks_running = ticks;
   release(&ptable.lock);
 }
 
@@ -225,6 +225,7 @@ fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
+  np->ticks_running = ticks;
 
   release(&ptable.lock);
 
@@ -510,6 +511,8 @@ wakeup1(void *chan)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan)
       p->state = RUNNABLE;
+      p->ticks_running = ticks;
+
 }
 
 // Wake up all processes sleeping on chan.
@@ -536,6 +539,7 @@ kill(int pid)
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
         p->state = RUNNABLE;
+        p->ticks_running = ticks;
       release(&ptable.lock);
       return 0;
     }
@@ -581,11 +585,7 @@ procdump(void)
   }
 }
 
-int sys_ticks_running(void) {
-  int pid;
-  if(argint(0, &pid) < 0)
-    return -1;
-
+int ticks_running(int pid) {
   struct proc *p;
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
@@ -619,6 +619,9 @@ sys_sjf_job_length(void)
     release(&ptable.lock);
     return -1;
 }
+
+int
+sjf_job_length(){}
 
 
 int sys_set_sched_priority(void) {

@@ -16,7 +16,7 @@ int main(void) {
     printf(1, "Launching %d CPU-bound jobs...\n", NUM_JOBS);
 
     for(int i = 0; i < NUM_JOBS; i++){
-        predicted_lengths[i] = (i+1) * 10; // Example: 10, 20, 30 
+        predicted_lengths[i] = (i+1) * 10; 
     }
  
     // Sort jobs by predicted length (simple bubble sort) 

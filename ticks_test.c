@@ -9,7 +9,6 @@ int main(int argc, char *argv[]) {
 
     int pid = atoi(argv[1]);  // convert argument to integer
     int ticks = ticks_running(pid);
-
     if (ticks >= 0)
         printf(1, "PID %d has run for %d ticks\n", pid, ticks);
     else
