@@ -42,6 +42,7 @@ struct proc {
   enum procstate state;        // Process state
   int pid;                     // Process ID
   int ticks_running;           // Number of ticks process has been running  
+  int predicted_length;        // Used in SJF scheduler in proc.c Scheduler() functoin for job length prediction
   struct proc *parent;         // Parent process
   struct trapframe *tf;        // Trap frame for current syscall
   struct context *context;     // swtch() here to run process
@@ -57,4 +58,7 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+
+// new function prototypes
 int ticks_running(int pid);
+int sjf_job_length(int pid);

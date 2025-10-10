@@ -105,3 +105,14 @@ sys_ticks_running(void)
     
    return ticks_running(pid);
 }
+
+int
+sys_sjf_job_length(void)
+{
+  int pid;
+
+  if(argint(0, &pid) < 0)
+    return -1;
+
+  return sjf_job_length(pid);
+}

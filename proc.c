@@ -7,6 +7,14 @@
 #include "proc.h"
 #include "spinlock.h"
 
+unsigned long randstate = 1;
+unsigned int
+rand()
+{
+  randstate = randstate * 1664525 + 1013904223;
+  return randstate;
+}
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -86,6 +94,7 @@ allocproc(void)
   return 0;
 
 found:
+  p->predicted_length = 50 + (rand() % 51); // random value between 50 and 100
   p->state = EMBRYO;
   p->pid = nextpid++;
   p->ticks_running = 0;
@@ -331,29 +340,70 @@ scheduler(void)
     // Enable interrupts on this processor.
     sti();
 
-    // Loop over process table looking for process to run.
-    acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
+    #ifdef SCHEDULER_SJF
+        acquire(&ptable.lock);
+        struct proc *shortest_job = 0;
+        // iterate throght the process table
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+          // look for RUNNABLE processes
+          if(p->state == RUNNABLE){
+            // if the process is not the shortest job (self comparison) and the length of the process is smaller thant he shortest_job
+            // update shortest job to be the new process
+            // this way, the project with smallest predicted_length will be the shortest job
+            if(!shortest_job || p->predicted_length < shortest_job->predicted_length){
+              shortest_job = p;
+            }
+          }
+        }
+        if(shortest_job){
+          c->proc = shortest_job;
+          switchuvm(shortest_job);
+          shortest_job->state = RUNNING;
+          shortest_job->ticks_running++; // increment the ticks_running counter for the process
+          swtch(&(c->scheduler), shortest_job->context);
+          switchkvm();
+          c->proc = 0;
+        }
+        release(&ptable.lock);
+    #else
+        // Loop over process table looking for process to run.
+        acquire(&ptable.lock);
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+          if(p->state != RUNNABLE)
+            continue;
+          // Switch to chosen process.  It is the process's job
+          // to release ptable.lock and then reacquire it
+          // before jumping back to us.
+          c->proc = p;
+          switchuvm(p);
+          p->state = RUNNING;
+          p->ticks_running++; // increment the ticks_running counter for the process
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
+          swtch(&(c->scheduler), p->context);
+          switchkvm();
 
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
-
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
-    }
-    release(&ptable.lock);
-
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+        }
+        release(&ptable.lock);
+    #endif
   }
+}
+
+int
+sjf_job_length(int pid){
+  struct proc *p;
+  int length = -1; // returning this if the pid is not found
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid){
+      length = p->predicted_length; 
+      break;
+    }
+  }
+  release(&ptable.lock);
+  return length;
 }
 
 // Enter scheduler.  Must hold only ptable.lock
