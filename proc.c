@@ -352,7 +352,7 @@ scheduler(void)
           if(p->state == RUNNABLE){
             // if the process is not the shortest job (self comparison) and the length of the process is smaller thant he shortest_job
             // update shortest job to be the new process
-            // this way, the project with smallest predicted_length will be the shortest job
+            // this way, the projcess with smallest predicted_length will be the shortest job
             if(!shortest_job || p->predicted_length < shortest_job->predicted_length){
               shortest_job = p;
             }
