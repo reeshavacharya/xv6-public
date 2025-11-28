@@ -9,6 +9,7 @@
 #include "spinlock.h"
 #include "sleeplock.h"
 #include "file.h"
+#include "stat.h"
 
 struct devsw devsw[NDEV];
 struct {
@@ -132,6 +133,42 @@ filewrite(struct file *f, char *addr, int n)
     // might be writing a device like the console.
     int max = ((MAXOPBLOCKS-1-1-2) / 2) * 512;
     int i = 0;
+    
+    // If lseek positioned offset beyond file size, fill the hole with zeros
+    // Only do this for regular files, not devices
+    ilock(f->ip);
+    if(f->ip->type == T_FILE && f->off > f->ip->size) {
+      uint hole_size = f->off - f->ip->size;
+      char zero[512];
+      memset(zero, 0, sizeof(zero));
+      uint hole_written = 0;
+      
+      // Fill hole in chunks, respecting transaction size limit
+      while(hole_written < hole_size) {
+        uint write_size = hole_size - hole_written;
+        if(write_size > sizeof(zero))
+          write_size = sizeof(zero);
+        if(write_size > (uint)max)
+          write_size = max;
+        
+        iunlock(f->ip);
+        begin_op();
+        ilock(f->ip);
+        
+        if((r = writei(f->ip, zero, f->ip->size, write_size)) <= 0) {
+          iunlock(f->ip);
+          end_op();
+          return -1;
+        }
+        hole_written += r;
+        
+        iunlock(f->ip);
+        end_op();
+        ilock(f->ip);
+      }
+    }
+    iunlock(f->ip);
+    
     while(i < n){
       int n1 = n - i;
       if(n1 > max)
@@ -154,4 +191,3 @@ filewrite(struct file *f, char *addr, int n)
   }
   panic("filewrite");
 }
-

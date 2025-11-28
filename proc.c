@@ -374,7 +374,7 @@ scheduler(void)
 
         acquire(&ptable.lock);
 
-        // Try from highest to lowest priority
+        // from highest to lowest priority
         int pr;
         int ran = 0;
         for(pr = 0; pr < PRIORITY; pr++){
@@ -384,11 +384,11 @@ scheduler(void)
             struct proc *cand = &ptable.proc[idx];
 
             if(cand->state == RUNNABLE && cand->priority == pr){
-              // Found the next to run in this priority level
+              // Findd the next to run in this priority level
               c->proc = cand;
               switchuvm(cand);
               cand->state = RUNNING;
-              cand->ticks_running++;           // total runtime (diagnostic)
+              cand->ticks_running++;           // total runtime 
               // Ensure slice starts counting if it was reset earlier
               // (trap.c will advance rrticks and preempt when rrticks >= quantum)
 

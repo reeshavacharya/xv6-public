@@ -174,7 +174,7 @@ sys_set_sched_quantum(void)
   acquire(&ptable.lock);
   p->quantum = q;
   // If the process shortens its quantum mid-slice,
-  // nudge the counter to avoid a long first slice.
+  // shift the counter to avoid a long first slice.
   if(p->rrticks > p->quantum)
     p->rrticks = p->quantum - 1;
   release(&ptable.lock);

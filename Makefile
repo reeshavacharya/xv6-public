@@ -192,6 +192,7 @@ UPROGS=\
 	_ticks_check\
 	_sjf_test\
 	_priority_rr_test\
+	_lseek_test\
 
 fs.img: mkfs README OS611_Ex.txt $(UPROGS)
 	./mkfs fs.img README OS611_Ex.txt $(UPROGS)
