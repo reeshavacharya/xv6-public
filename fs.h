@@ -23,7 +23,15 @@ struct superblock {
 
 #define NDIRECT 12
 #define NINDIRECT (BSIZE / sizeof(uint))
-#define MAXFILE (NDIRECT + NINDIRECT)
+#define NINDIRECT2  (NINDIRECT * NINDIRECT)   // for double-indirect
+
+// Max file size for ONE double-indirect:
+// 11 direct + 128 single-indirect + 128*128 double-indirect = 16523
+// #define MAXFILE ( (NDIRECT - 2) + NINDIRECT + 2 * NINDIRECT2 )
+
+// Final layout with TWO double-indirect blocks:
+// 10 direct + 128 single-indirect + 2 * (128*128) double-indirect = 32906 blocks
+#define MAXFILE ( (NDIRECT - 2) + NINDIRECT + 2 * NINDIRECT2 )
 
 // On-disk inode structure
 struct dinode {
