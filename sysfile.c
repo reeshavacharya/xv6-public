@@ -307,6 +307,44 @@ sys_open(void)
       return -1;
     }
     ilock(ip);
+
+    // --- start of symlink handling ---
+    if(ip->type == T_SYMLINK && !(omode & O_NOFOLLOW)){
+      int depth = 0;
+
+      while(ip->type == T_SYMLINK){
+        if(depth++ >= 10){
+          // too many links -> treat as cycle / error
+          iunlockput(ip);
+          end_op();
+          return -1;
+        }
+
+        char target[MAXPATH];
+        int n;
+
+        // read the stored target path from the symlink inode
+        n = readi(ip, target, 0, sizeof(target) - 1);
+        if(n < 0){
+          iunlockput(ip);
+          end_op();
+          return -1;
+        }
+        target[n] = 0;  // null-terminate
+
+        iunlockput(ip);
+
+        // now look up the target path
+        if((ip = namei(target)) == 0){
+          // target does not exist
+          end_op();
+          return -1;
+        }
+        ilock(ip);
+      }
+    }
+    // --- end of symlink handling ---
+
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
       end_op();
@@ -330,6 +368,40 @@ sys_open(void)
   f->readable = !(omode & O_WRONLY);
   f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
   return fd;
+}
+
+int
+sys_symlink(void)
+{
+  char *target;
+  char *path;
+  struct inode *ip;
+  int len;
+
+  if(argstr(0, &target) < 0 || argstr(1, &path) < 0)
+    return -1;
+
+  begin_op();
+
+  // create new inode for the symlink
+  ip = create(path, T_SYMLINK, 0, 0);
+  if(ip == 0){
+    end_op();
+    return -1;
+  }
+
+  // write target path into the symlink's data
+  len = strlen(target) + 1;  // include '\0'
+
+  if(writei(ip, target, 0, len) != len){
+    iunlockput(ip);
+    end_op();
+    return -1;
+  }
+
+  iunlockput(ip);
+  end_op();
+  return 0;
 }
 
 int

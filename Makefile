@@ -194,6 +194,7 @@ UPROGS=\
 	_priority_rr_test\
 	_lseek_test\
 	_bigfile\
+	_symlink_test\
 
 fs.img: mkfs README OS611_Ex.txt $(UPROGS)
 	./mkfs fs.img README OS611_Ex.txt $(UPROGS)
